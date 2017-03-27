@@ -1,0 +1,37 @@
+---
+title: "Capstone Project"
+author: "Tadaaki Sun"
+date: "January 25, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Load Libraries
+```{r}
+library(ggplot2)
+library(dplyr)
+library(googleVis)
+library(caret)
+library(randomForest)
+library(verification)
+library(rpart)
+library(rpart.plot)
+library(caTools)
+library(ROCR)
+library(e1071)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
