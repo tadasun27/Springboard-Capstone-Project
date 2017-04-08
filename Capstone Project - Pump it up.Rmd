@@ -6,7 +6,8 @@ output: pdf_document
 
 ## Capstone Project - Pump it up
 
-Load Libraries:
+# Load Libraries
+
 ```{r}
 # Load libraries
 library(ggplot2)
@@ -24,23 +25,27 @@ train_values <- read.csv("train_value.csv")
 train_labels <- read.csv("train_label.csv")
 ```
 
-Merge data frames
+# Merge data frames
+
 ```{r}
 train <- merge(train_labels, train_values)
 ```
 
-Optional cleaning environment
+# Optional cleaning environment
+
 ```{r}
 rm(train_values)
 rm(train_labels)
 ```
 
-Preliminary Data Analysis
+# Summary of Data
+
 ```{r}
 summary(train)
 ```
 
-Split
+# Splitting Data into Training and Test Set
+
 ```{r}
 library(caret)
 set.seed(3456)
@@ -59,7 +64,8 @@ test  <- train[-Index,]
 #nrow(test)
 ```
 
-Merging "functional needs repair" with "non functional" 
+# Merging "functional needs repair" with "non functional" 
+
 ```{r}
 train$status_group <- replace(train$status_group, train$status_group == "functional needs repair", "non functional")
 train$status_group <- factor(train$status_group)
@@ -69,14 +75,16 @@ summary(train$status_group)
 summary(test$status_group)
 ```
 
-Calculating the baseline performance
+# Baseline performance
+
 ```{r}
 22582/41581 # Baseline Performance = functional water points/total = 0.5430846
 ```
 
 ### Preliminary Exploration 
 
-region 
+# region 
+
 ```{r}
 str(train$region) #21 levels is good amount, keep.
 
@@ -84,7 +92,7 @@ qplot(region, data=train, geom="bar", fill=status_group) +
   theme(legend.position = "top")
 ```
 
-public_meeting - 3000 missing. Decide what to do.
+# public_meeting - 3000 missing. Decide what to do.
 ```{r}
 str(train$public_meeting) #keep
 
@@ -92,7 +100,7 @@ qplot(public_meeting, data=train, geom="bar", fill=status_group) +
   theme(legend.position = "top")
 ```
 
-permit - Watch the 3000 missing values. Otherwise good amount.
+# permit - Watch the 3000 missing values. Otherwise good amount.
 ```{r}
 str(train$permit)
 
@@ -100,7 +108,7 @@ qplot(permit, data=train, geom="bar", fill=status_group) +
   theme(legend.position = "top")
 ```
 
-basin - Approximately 12000 out of 59400.
+# basin - Approximately 12000 out of 59400.
 ```{r}
 summary(train$basin)
 
@@ -108,7 +116,7 @@ qplot(basin, data=train, geom="bar", fill=status_group) +
   theme(legend.position = "top")
 ```
 
-payment_type
+# payment_type
 ```{r}
 summary(train$payment_type)
 
@@ -126,7 +134,7 @@ qplot(paytype0, data=train, geom="bar", fill=status_group) +
   theme(legend.position = "top")
 ```  
 
-management_group
+# management_group
 ```{r}
 summary(train$management_group)
 
@@ -144,7 +152,7 @@ qplot(management0, data=train, geom="bar", fill=status_group) +
   theme(legend.position = "top")
 ```
 
-extraction_type_group
+# extraction_type_group
 ```{r}
 str(train$extraction_type_group)
 
@@ -176,7 +184,7 @@ qplot(exttype0, data=train, geom="bar", fill=status_group) +
 
 ```
 
-waterpoint_type
+# waterpoint_type
 ```{r}
 str(train$waterpoint_type)
 
@@ -212,7 +220,7 @@ qplot(waterpoint_type, data=train, geom="bar", fill=status_group) +
 
 ```
 
-gps_height
+# gps_height
 ```{r}
 hist(train$gps_height)
 nrow(train[train$gps_height==0,])
@@ -238,7 +246,7 @@ qplot(gps0, data=train, geom="bar", fill=status_group) +
 
 ```
 
-Quantity
+# quantity
 ```{r} 
 table(train$quantity,train$status_group)
 prop.table(table(train$quantity, train$status_group), margin = 1)
@@ -248,7 +256,7 @@ qplot(quantity, data=train, geom="bar", fill=status_group) +
   theme(legend.position = "top")
 ```
 
-water_quality
+# water_quality
 ```{r}  
 # Bar plot for water_quality - significant reason for failure (salty and unknown)
 str(train$water_quality)
@@ -267,7 +275,7 @@ qplot(wq0, data=train, geom="bar", fill=status_group) +
   theme(legend.position = "top")
 ```
 
-scheme_management
+# scheme_management
 ```{r} 
 # Bar plot for waterpoint_type - significant reason for failure (other)
 str(train$scheme_management)
@@ -289,7 +297,7 @@ qplot(schman0, data=train, geom="bar", fill=status_group) +
 
 ```
 
-source
+# source
 ```{r} 
 # Bar plot for source - no significant reason for failure
 str(train$source)
@@ -319,8 +327,10 @@ qplot(source, data=train, geom="bar", fill=status_group) +
   theme(axis.text.x=element_text(angle = -20, hjust = 0))
 ```
 
-###Exploratory Data Analysis
-#Method 1 - Logistic Regression
+### Exploratory Data Analysis
+
+# Method 1 - Logistic Regression
+
 ```{r}
 PumpLog <- glm(formula = status_group ~ region + public_meeting + basin + permit + paytype0 + exttype0 + waterpoint_type + gps0 + quantity + schman0 + source,
                family = "binomial"(link="logit"), data = train) 
@@ -328,7 +338,8 @@ summary(PumpLog)
 coef(summary(PumpLog))
 ```
 
-#Finalized Model
+# Finalized Model
+
 ```{r}
 predTrain <- predict(PumpLog,train, type="response")
 summary(predTrain)
@@ -343,6 +354,7 @@ table(train$status_group, predTrain>0.5) #This model perdicts with 72.82% accura
 ```
 
 # Prediction
+
 ```{r}
 predTest = predict(PumpLog, type="response", newdata = test)
 summary(predTest)
