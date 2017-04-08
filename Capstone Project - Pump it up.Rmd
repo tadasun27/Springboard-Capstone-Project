@@ -1,37 +1,351 @@
 ---
-title: "Capstone Project"
+title: "Capstone Project - Pump it up"
 author: "Tadaaki Sun"
-date: "January 25, 2017"
-output: html_document
+output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+## Capstone Project - Pump it up
 
-## R Markdown
-
-Load Libraries
+Load Libraries:
 ```{r}
+# Load libraries
 library(ggplot2)
-library(dplyr)
-library(googleVis)
-library(caret)
-library(randomForest)
-library(verification)
 library(rpart)
 library(rpart.plot)
 library(caTools)
 library(ROCR)
-library(e1071)
 ```
 
-## Including Plots
+# Uploading Data
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+Import train values and labels
+```{r}
+train_values <- read.csv("train_value.csv")
+train_labels <- read.csv("train_label.csv")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Merge data frames
+```{r}
+train <- merge(train_labels, train_values)
+```
+
+Optional cleaning environment
+```{r}
+rm(train_values)
+rm(train_labels)
+```
+
+Preliminary Data Analysis
+```{r}
+summary(train)
+```
+
+Split
+```{r}
+library(caret)
+set.seed(3456)
+Index <- createDataPartition(train$status_group, p = 0.7, 
+                                  list = FALSE, 
+                                  times = 1)
+head(Index)
+
+train <- train[ Index,]
+test  <- train[-Index,]
+
+#split = sample.split(train$status_group, SplitRatio = 2/3, group=NULL)
+#train = subset(train, split == TRUE)
+#test = subset(train, split == FALSE)
+#nrow(train)
+#nrow(test)
+```
+
+Merging "functional needs repair" with "non functional" 
+```{r}
+train$status_group <- replace(train$status_group, train$status_group == "functional needs repair", "non functional")
+train$status_group <- factor(train$status_group)
+test$status_group <- replace(test$status_group, test$status_group == "functional needs repair", "non functional")
+test$status_group <- factor(test$status_group)
+summary(train$status_group)
+summary(test$status_group)
+```
+
+Calculating the baseline performance
+```{r}
+22582/41581 # Baseline Performance = functional water points/total = 0.5430846
+```
+
+### Preliminary Exploration 
+
+region 
+```{r}
+str(train$region) #21 levels is good amount, keep.
+
+qplot(region, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+```
+
+public_meeting - 3000 missing. Decide what to do.
+```{r}
+str(train$public_meeting) #keep
+
+qplot(public_meeting, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+```
+
+permit - Watch the 3000 missing values. Otherwise good amount.
+```{r}
+str(train$permit)
+
+qplot(permit, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+```
+
+basin - Approximately 12000 out of 59400.
+```{r}
+summary(train$basin)
+
+qplot(basin, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+```
+
+payment_type
+```{r}
+summary(train$payment_type)
+
+qplot(payment_type, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+
+train$paytype0 <- 0
+train$paytype0[train$payment_type=="never pay"]<-1
+table(train$paytype0)
+
+test$paytype0 <- 0
+test$paytype0[test$payment_type=="never pay"]<-1
+
+qplot(paytype0, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+```  
+
+management_group
+```{r}
+summary(train$management_group)
+
+qplot(management_group, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+
+train$management0 <- 0
+train$management0[train$management_group=="user-group"]<-1
+table(train$management0)
+
+test$management0 <- 0
+test$management0[test$management_group=="user-group"]<-1
+
+qplot(management0, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+```
+
+extraction_type_group
+```{r}
+str(train$extraction_type_group)
+
+qplot(extraction_type_group, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+
+prop.table((table(train$extraction_type_group)))
+train$extraction_type_group[train$extraction_type_group=="rope pump"] <- "other"
+train$extraction_type_group[train$extraction_type_group=="wind-powered"] <- "other"
+train$extraction_type_group<-droplevels(train$extraction_type_group)
+prop.table((table(train$extraction_type_group)))
+
+test$extraction_type_group[test$extraction_type_group=="rope pump"] <- "other"
+test$extraction_type_group[test$extraction_type_group=="wind-powered"] <- "other"
+test$extraction_type_group<-droplevels(test$extraction_type_group)
+
+qplot(extraction_type_group, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+
+train$exttype0 <- 0
+train$exttype0[train$extraction_type_group=="gravity"]<-1
+table(train$exttype0)
+
+test$exttype0 <- 0
+test$exttype0[test$extraction_type_group=="gravity"]<-1
+
+qplot(exttype0, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+
+```
+
+waterpoint_type
+```{r}
+str(train$waterpoint_type)
+
+qplot(waterpoint_type, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+
+prop.table(table(train$waterpoint_type))
+train$waterpoint_type[train$waterpoint_type=="cattle trough"] <- "other"
+train$waterpoint_type[train$waterpoint_type=="dam"] <- "other"
+train$waterpoint_type[train$waterpoint_type=="improved spring"] <- "other"
+train$waterpoint_type<-droplevels(train$waterpoint_type)
+prop.table((table(train$waterpoint_type)))
+
+test$waterpoint_type[test$waterpoint_type=="cattle trough"] <- "other"
+test$waterpoint_type[test$waterpoint_type=="dam"] <- "other"
+test$waterpoint_type[test$waterpoint_type=="improved spring"] <- "other"
+test$waterpoint_type<-droplevels(test$waterpoint_type)
+
+qplot(waterpoint_type, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+
+#train$wptype0 <- 0
+#train$wptype0[train$waterpoint_type=="communal standpipe multiple"]<-1
+#train$wptype0[train$waterpoint_type=="other"]<-1
+#table(train$wptype0)
+
+#test$wptype0 <- 0
+#test$wptype0[test$waterpoint_type=="communal standpipe multiple"]<-1
+#test$wptype0[test$waterpoint_type=="other"]<-1
+
+#qplot(wptype0, data=train, geom="bar", fill=status_group) + 
+ # theme(legend.position = "top")
+
+```
+
+gps_height
+```{r}
+hist(train$gps_height)
+nrow(train[train$gps_height==0,])
+
+ggplot(train, aes(x = gps_height)) +
+  geom_histogram(bins = 20) + 
+  facet_grid( ~ status_group)
+
+train$gps0 <- 0
+train$gps0[train$gps_height==0]<-1
+table(train$gps0)
+
+test$gps0 <- 0
+test$gps0[test$gps_height==0]<-1
+
+#gps_height - how many values were missing?
+
+hist(train$gps_height)
+hist(train$gps_height[train$gps0 ==1])
+
+qplot(gps0, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+
+```
+
+Quantity
+```{r} 
+table(train$quantity,train$status_group)
+prop.table(table(train$quantity, train$status_group), margin = 1)
+
+# Bar plot for quantity - significant reason for failure (dry)
+qplot(quantity, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+```
+
+water_quality
+```{r}  
+# Bar plot for water_quality - significant reason for failure (salty and unknown)
+str(train$water_quality)
+
+qplot(water_quality, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+
+train$wq0 <- 0
+train$wq0[train$water_quality=="soft"]<-1
+table(train$wq0)
+
+test$wq0 <- 0
+test$wq0[test$water_quality=="soft"]<-1
+
+qplot(wq0, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top")
+```
+
+scheme_management
+```{r} 
+# Bar plot for waterpoint_type - significant reason for failure (other)
+str(train$scheme_management)
+
+qplot(scheme_management, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top") + 
+  theme(axis.text.x=element_text(angle = -20, hjust = 0))
+
+train$schman0 <- 0
+train$schman0[train$scheme_management=="VWC"]<-1
+table(train$schman0)
+
+test$schman0 <- 0
+test$schman0[test$scheme_management=="VWC"]<-1
+
+qplot(schman0, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top") + 
+  theme(axis.text.x=element_text(angle = -20, hjust = 0))
+
+```
+
+source
+```{r} 
+# Bar plot for source - no significant reason for failure
+str(train$source)
+
+qplot(source, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top") + 
+  theme(axis.text.x=element_text(angle = -20, hjust = 0))
+
+prop.table(table(train$source))
+train$source[train$source=="hand dtw"] <- "other"
+train$source[train$source=="dam"] <- "other"
+train$source[train$source=="lake"] <- "other"
+train$source[train$source=="rainwater harvesting"] <- "other"
+train$source[train$source=="unknown"] <- "other"
+train$source<-droplevels(train$source)
+prop.table((table(train$source)))
+
+test$source[test$source=="hand dtw"] <- "other"
+test$source[test$source=="dam"] <- "other"
+test$source[test$source=="lake"] <- "other"
+test$source[test$source=="rainwater harvesting"] <- "other"
+test$source[test$source=="unknown"] <- "other"
+test$source<-droplevels(test$source)
+
+qplot(source, data=train, geom="bar", fill=status_group) + 
+  theme(legend.position = "top") + 
+  theme(axis.text.x=element_text(angle = -20, hjust = 0))
+```
+
+###Exploratory Data Analysis
+#Method 1 - Logistic Regression
+```{r}
+PumpLog <- glm(formula = status_group ~ region + public_meeting + basin + permit + paytype0 + exttype0 + waterpoint_type + gps0 + quantity + schman0 + source,
+               family = "binomial"(link="logit"), data = train) 
+summary(PumpLog)
+coef(summary(PumpLog))
+```
+
+#Finalized Model
+```{r}
+predTrain <- predict(PumpLog,train, type="response")
+summary(predTrain)
+
+tapply(predTrain, train$status_group, mean, na.rm=TRUE) # 0.319 Functional, 0.62 Non Functional 
+table(train$status_group, predTrain>0.5) #This model perdicts with 72.82% accuracy
+
+16230+3134
+16230/19364 # specifity = 0.838
+9712+6431
+9712/16143# sensitivity = 0.602
+```
+
+# Prediction
+```{r}
+predTest = predict(PumpLog, type="response", newdata = test)
+summary(predTest)
+tapply(predTest, test$status_group,mean,na.rm=TRUE) # 0.32 Functional, 0.62 Non-functional
+table(test$status_group, predTest>0.5) #This model perdicts with 69.54% accuracy
+```
