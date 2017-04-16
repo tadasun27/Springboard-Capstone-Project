@@ -333,9 +333,10 @@ qplot(source, data=train, geom="bar", fill=status_group) +
 
 ```{r}
 PumpLog <- glm(formula = status_group ~ region + public_meeting + basin + permit + paytype0 + exttype0 + waterpoint_type + gps0 + quantity + schman0 + source,
-               family = "binomial"(link="logit"), data = train) 
+               family = "binomial"(link="logit"), data = train) #water quality and management group is omitted
 summary(PumpLog)
 coef(summary(PumpLog))
+anova(PumpLog, test="Chisq")
 ```
 
 # Finalized Model
